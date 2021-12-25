@@ -1,8 +1,8 @@
 package malscontrolplatform;
 
 import java.util.concurrent.PriorityBlockingQueue;
-import malscontrolplatform.broker.Broker;
-import malscontrolplatform.broker.Message;
+import malscontrolplatform.intercommunicationmodule.IntercommunicationModule;
+import malscontrolplatform.intercommunicationmodule.Message;
 
 /**
  *
@@ -10,11 +10,13 @@ import malscontrolplatform.broker.Message;
  */
 public abstract class TaskModule extends Thread {
     
-    protected final Broker broker;
+    private final String moduleName;
+    protected final IntercommunicationModule intercommunicationModule;
     protected final PriorityBlockingQueue<Message> messageQueue;
         
-    public TaskModule(Broker broker) {
-        this.broker = broker;
+    public TaskModule(String moduleName, IntercommunicationModule intercommunicationModule) {
+        this.moduleName = moduleName;
+        this.intercommunicationModule = intercommunicationModule;
         messageQueue = new PriorityBlockingQueue<>();
     }
     
@@ -24,5 +26,9 @@ public abstract class TaskModule extends Thread {
     
     @Override
     public abstract void run();
+
+    public String getModuleName() {
+        return moduleName;
+    }
     
 }

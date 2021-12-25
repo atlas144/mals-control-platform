@@ -1,4 +1,4 @@
-package malscontrolplatform.broker;
+package malscontrolplatform.intercommunicationmodule;
 
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,7 +9,7 @@ import malscontrolplatform.TaskModule;
  *
  * @author atlas144
  */
-public class Broker extends Thread {
+public class IntercommunicationModule extends Thread {
     
     private final PriorityBlockingQueue<Message> messageQueue;
     private final ConcurrentHashMap<String, HashSet<TaskModule>> subscribtions;
@@ -20,7 +20,7 @@ public class Broker extends Thread {
         }
     }
     
-    public Broker() {
+    public IntercommunicationModule() {
         messageQueue = new PriorityBlockingQueue<>();
         subscribtions = new ConcurrentHashMap<>();
     }

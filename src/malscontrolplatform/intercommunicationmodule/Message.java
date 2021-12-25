@@ -1,4 +1,4 @@
-package malscontrolplatform.broker;
+package malscontrolplatform.intercommunicationmodule;
 
 /**
  *
