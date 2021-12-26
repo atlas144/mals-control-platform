@@ -44,11 +44,17 @@ public class IntercommunicationModule extends Thread {
         }
     }
     
-    public void unSubscribe(String topic, TaskModule subscriber) {
+    public void unsubscribe(String topic, TaskModule subscriber) {
         if (subscribtions.contains(topic)) {
-            if (subscribtions.contains(subscriber)) {
-                subscribtions.get(topic).add(subscriber);
+            HashSet<TaskModule> subscriberList = subscribtions.get(topic);
+            
+            if (subscriberList.contains(subscriber)) {
+                subscriberList.remove(subscriber);
+            } else {
+                // TODO log unknown subscriber
             }
+        } else {
+            // TODO log unknown topic
         }
     }
     
