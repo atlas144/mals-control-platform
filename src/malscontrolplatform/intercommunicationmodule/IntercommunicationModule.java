@@ -49,7 +49,9 @@ public class IntercommunicationModule extends Thread {
             HashSet<TaskModule> subscriberList = subscribtions.get(topic);
             
             if (subscriberList.contains(subscriber)) {
-                subscriberList.remove(subscriber);
+                synchronized (subscriberList) {
+                    subscriberList.remove(subscriber);
+                }
             } else {
                 // TODO log unknown subscriber
             }
