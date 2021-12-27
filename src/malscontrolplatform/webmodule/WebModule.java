@@ -2,8 +2,7 @@ package malscontrolplatform.webmodule;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import malscontrolplatform.TaskModule;
 import malscontrolplatform.intercommunicationmodule.Message;
@@ -21,82 +20,78 @@ public class WebModule extends WebSocketServer {
     
     private final String host;
     private final short port;
-    private final ConcurrentHashMap<String, ArrayList<WebSocket>> endpoints;
-    private final ConcurrentHashMap<String, TaskModule> modules;
+    private final ConcurrentHashMap<String, TopicInteractorList> topics;
     
-    public WebModule(String host, short port, ConcurrentHashMap modules) {
+    private void subscribe(String topic, WebSocket connection) {        
+        if (topics.containsKey(topic)) {
+            topics.get(topic).addConnection(connection);
+        } else {
+            TopicInteractorList topicInteractorList = new TopicInteractorList(topic);
+            
+            topicInteractorList.addConnection(connection);
+            topics.put(topic, topicInteractorList);
+        }
+    }
+    
+    public WebModule(String host, short port) {
         super(new InetSocketAddress(host, port));
         
         this.host = host;
         this.port = port;
-        this.modules = modules;
-        endpoints = new ConcurrentHashMap<>();
+        topics = new ConcurrentHashMap<>();
     }
     
     @Override
     public void onOpen(WebSocket connection, ClientHandshake handshake) {
-        String endpoint = URI.create(connection.getResourceDescriptor()).getPath();
+        String topic = URI.create(connection.getResourceDescriptor()).getPath();
         
-        registerTopic(endpoint);
-        
-        ArrayList<WebSocket> connections = endpoints.get(endpoint);
-        
-        synchronized (connections) {
-            connections.add(connection);
-        }
+        subscribe(topic, connection);
     }
 
     @Override
     public void onClose(WebSocket connection, int code, String reason, boolean remote) {
-        String endpoint = URI.create(connection.getResourceDescriptor()).getPath();
+        String topic = URI.create(connection.getResourceDescriptor()).getPath();
         
-        endpoints.get(endpoint).remove(connection);
+        if (topics.containsKey(topic)) {
+            topics.get(topic).removeConnection(connection);
+        } else {
+            // TODO log unregistered topic
+        }
     }
 
     @Override
     public void onMessage(WebSocket connection, String message) {
-        String[] endpointLayers = URI.create(connection.getResourceDescriptor()).getPath().split("/");
+        String topic = URI.create(connection.getResourceDescriptor()).getPath();
         
-        switch (endpointLayers[0]) {
-            case "module": {
-                if (modules.containsKey(endpointLayers[1])) {
-                    String topic = "";
-                    JSONObject messagePayload = new JSONObject(message);
-                    Priority priority;
-                                     
-                    for (byte i = 2; i < endpointLayers.length; i++) {
-                        topic += endpointLayers[i];
-                    }
-                    
-                    switch (messagePayload.getInt("priority")) {
-                        case 0: {
-                            priority = Priority.UNIMPORTANT;
-                            break;
-                        } case 1: {
-                            priority = Priority.NORMAL;
-                            break;
-                        } case 2: {
-                            priority = Priority.IMPORTANT;
-                            break;
-                        } case 3: {
-                            priority = Priority.CRITICAL;
-                            break;
-                        } default:{
-                            // TODO log unexpected priority level -> falling to normal
-                            priority = Priority.NORMAL;
-                            break;
-                        }
-                    }
-                    
-                    modules.get(endpointLayers[1]).acceptMessage(new Message(topic, messagePayload.getString("payload"), priority));
-                } else {
-                    // TODO log unexpected module endpoint
+        if (topics.containsKey(topic)) {
+            JSONObject messagePayload = new JSONObject(message);
+            Priority priority;
+
+            switch (messagePayload.getInt("priority")) {
+                case 0: {
+                    priority = Priority.UNIMPORTANT;
+                    break;
+                } case 1: {
+                    priority = Priority.NORMAL;
+                    break;
+                } case 2: {
+                    priority = Priority.IMPORTANT;
+                    break;
+                } case 3: {
+                    priority = Priority.CRITICAL;
+                    break;
+                } default:{
+                    // TODO log unexpected priority level -> falling to normal
+                    priority = Priority.NORMAL;
+                    break;
                 }
-                break;
-            } default: {
-                // TODO log unexpected endpoint
-                break;
             }
+
+            for (TaskModule module : topics.get(topic).getModules()) {
+                module.acceptMessage(new Message(topic, messagePayload.getString("payload"), priority));            
+            }
+        } else {
+            // TODO log unknown topic
         }
     }
 
@@ -110,26 +105,28 @@ public class WebModule extends WebSocketServer {
         // TODO log server started successfully on host:port
     }
     
-    public void registerTopic(String endpoint) {        
-        if (!endpoints.contains(endpoint)) {
-            endpoints.put(endpoint, new ArrayList<>());
-            // TODO log topic <topic> for module <module> succesfully registered
+    public void subscribe(String topic, TaskModule module) {        
+        if (topics.containsKey(topic)) {
+            topics.get(topic).addModule(module);
         } else {
-            // TODO log topic <topic> for module <module> already exist
+            TopicInteractorList topicInteractorList = new TopicInteractorList(topic);
+            
+            topicInteractorList.addModule(module);
+            topics.put(topic, topicInteractorList);
         }
     }
     
-    public void registerTopic(String moduleName, String topic) {
-        String endpoint = moduleName + "/" + topic;
-        
-        registerTopic(endpoint);
+    public void unsubscribe(String topic, TaskModule module) {
+        if (topics.containsKey(topic)) {
+            topics.get(topic).removeModule(module);
+        } else {
+            // TODO log unregistered topic
+        }
     }
     
-    public void publish(String moduleName, String topic, String message) {
-        String endpoint = moduleName + "/" + topic;
-        
-        if (endpoints.contains(endpoint)) {
-            ArrayList<WebSocket> connections = endpoints.get(endpoint);
+    public void publish(String topic, String message) {
+        if (topics.containsKey(topic)) {
+            HashSet<WebSocket> connections = topics.get(topic).getConnections();
 
             for (WebSocket connection : connections) {
                 connection.send(message);
