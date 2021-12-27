@@ -1,5 +1,6 @@
 package malscontrolplatform;
 
+import java.util.Objects;
 import java.util.concurrent.PriorityBlockingQueue;
 import malscontrolplatform.intercommunicationmodule.IntercommunicationModule;
 import malscontrolplatform.intercommunicationmodule.Message;
@@ -29,6 +30,25 @@ public abstract class TaskModule extends Thread {
     
     public void acceptMessage(Message message) {
         messageQueue.add(message);
+    }
+
+    @Override
+    public int hashCode() {
+        return 59 * 5 + Objects.hashCode(this.moduleName);
+    }
+    
+    @Override
+    public boolean equals(Object object) {
+        if (this == object) {
+            return true;
+        }
+        if (object == null || getClass() != object.getClass()) {
+            return false;
+        }
+         
+        TaskModule module = (TaskModule) object;
+        
+        return moduleName.equals(module.getModuleName());
     }
     
     @Override
