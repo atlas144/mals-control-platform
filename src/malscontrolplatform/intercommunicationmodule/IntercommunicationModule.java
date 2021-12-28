@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import malscontrolplatform.TaskModule;
+import org.tinylog.Logger;
 
 /**
  *
@@ -15,18 +16,26 @@ public class IntercommunicationModule extends Thread {
     private final ConcurrentHashMap<String, HashSet<TaskModule>> subscribtions;
     
     private void sendMessage(Message message) {
+        int counter = 0;
+        
         for (TaskModule module : subscribtions.get(message.getTopic())) {
             module.acceptMessage(message);
+            Logger.trace("Message '{}' successfully sent to the '{}' task module", message, module.getModuleName());
+            counter++;
         }
+        
+        Logger.debug("Message '{}' successfully sent to {} modules", message, counter);
     }
     
     public IntercommunicationModule() {
         messageQueue = new PriorityBlockingQueue<>();
         subscribtions = new ConcurrentHashMap<>();
+        Logger.info("Intercommunication module successfully created");
     }
     
-    public void publish(String topic, String Payload, Priority priority) {
-        messageQueue.add(new Message(topic, Payload, priority));
+    public void publish(String topic, String payload, Priority priority) {
+        messageQueue.add(new Message(topic, payload, priority));
+        Logger.debug("Message successfully published\nTopic: {}\nPayload: {}\nPriority: {}", topic, payload, priority.toString());
     }
     
     public void subscribe(String topic, TaskModule subscriber) {
@@ -41,7 +50,11 @@ public class IntercommunicationModule extends Thread {
             synchronized(subscribtions) {
                 subscribtions.put(topic, subscriberList);
             }
+            
+            Logger.info("Topic '{}' successfully registered", topic);
         }
+
+        Logger.info("Task module '{}' successfully subscribed to '{}' topic", subscriber.getModuleName(), topic);
     }
     
     public void unsubscribe(String topic, TaskModule subscriber) {
@@ -51,12 +64,14 @@ public class IntercommunicationModule extends Thread {
             if (subscriberList.contains(subscriber)) {
                 synchronized (subscriberList) {
                     subscriberList.remove(subscriber);
+
+                    Logger.info("Task module '{}' successfully unsubscribed '{}' topic", subscriber.getModuleName(), topic);
                 }
             } else {
-                // TODO log unknown subscriber
+                Logger.warn("Task module '{}' has not been subscribing to '{}' topic", subscriber.getModuleName(), topic);
             }
         } else {
-            // TODO log unknown topic
+            Logger.warn("Topic '{}' in not registered topic", topic);
         }
     }
     
@@ -68,6 +83,7 @@ public class IntercommunicationModule extends Thread {
                 
                 sendMessage(message);
             } catch (InterruptedException ex) {
+                Logger.info("Intercommunication module stopping");
                 return;
             }
         }

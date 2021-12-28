@@ -1,5 +1,7 @@
 package malscontrolplatform.intercommunicationmodule;
 
+import org.tinylog.Logger;
+
 /**
  *
  * @author atlas144
@@ -14,6 +16,7 @@ public class Message implements Comparable {
         this.topic = topic;
         this.payload = payload;
         this.priority = priority;
+        Logger.debug("Mesage successfully initialized:\nTopic: {}\nPayload: {}\nPriority: {}", topic, payload, priority.toString());
     }
     
     @Override

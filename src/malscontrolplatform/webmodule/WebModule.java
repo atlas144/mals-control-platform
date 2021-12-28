@@ -11,6 +11,7 @@ import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 import org.json.JSONObject;
+import org.tinylog.Logger;
 
 /**
  *
@@ -22,15 +23,19 @@ public class WebModule extends WebSocketServer {
     private final short port;
     private final ConcurrentHashMap<String, TopicInteractorList> topics;
     
-    private void subscribe(String topic, WebSocket connection) {        
+    private void subscribe(String topic, WebSocket subscriber) {        
         if (topics.containsKey(topic)) {
-            topics.get(topic).addConnection(connection);
+            topics.get(topic).addConnection(subscriber);
         } else {
             TopicInteractorList topicInteractorList = new TopicInteractorList(topic);
             
-            topicInteractorList.addConnection(connection);
+            topicInteractorList.addConnection(subscriber);
             topics.put(topic, topicInteractorList);
+            
+            Logger.info("Topic '{}' successfully registered", topic);
         }
+        
+        Logger.info("Connection '{}' successfully subscribed to '{}' topic", subscriber.getRemoteSocketAddress().toString(), topic);
     }
     
     public WebModule(String host, short port) {
@@ -39,6 +44,7 @@ public class WebModule extends WebSocketServer {
         this.host = host;
         this.port = port;
         topics = new ConcurrentHashMap<>();
+        Logger.info("Web module successfully created");
     }
     
     @Override
@@ -46,6 +52,8 @@ public class WebModule extends WebSocketServer {
         String topic = URI.create(connection.getResourceDescriptor()).getPath();
         
         subscribe(topic, connection);
+            
+        Logger.info("Connection '{}' successfully opened", connection.getRemoteSocketAddress().toString());
     }
 
     @Override
@@ -54,9 +62,12 @@ public class WebModule extends WebSocketServer {
         
         if (topics.containsKey(topic)) {
             topics.get(topic).removeConnection(connection);
+            Logger.info("Connection '{}' successfully unsubscribed '{}' topic", connection.getRemoteSocketAddress().toString(), topic);
         } else {
-            // TODO log unregistered topic
+            Logger.warn("Connection '{}' has not been subscribing to '{}' topic", connection.getRemoteSocketAddress().toString(), topic);
         }
+        
+        Logger.info("Connection '{}' successfully closed\nReason: {}\nCode: {}\nRemote: {}", connection.getRemoteSocketAddress().toString(), reason, code, remote);
     }
 
     @Override
@@ -86,55 +97,72 @@ public class WebModule extends WebSocketServer {
                     break;
                 }
             }
+            
+            Logger.debug("Message successfully accepted\nTopic: {}\nPayload: {}\nPriority: {}", topic, message, priority.toString());
+        
+            int counter = 0;
 
             for (TaskModule module : topics.get(topic).getModules()) {
-                module.acceptMessage(new Message(topic, messagePayload.getString("payload"), priority));            
+                module.acceptMessage(new Message(topic, messagePayload.getString("payload"), priority));
+                Logger.trace("Message '{}' successfully sent to the '{}' task module", message, module.getModuleName());
+                counter++;
             }
+            
+            Logger.debug("Message '{}' successfully sent to {} task modules", message, counter);
         } else {
-            // TODO log unknown topic
+            Logger.warn("Topic '{}' in not registered topic", topic);
         }
     }
 
     @Override
     public void onError(WebSocket connection, Exception ex) {
-        // TODO log an error occurred on connection " + conn.getRemoteSocketAddress()  + ":" + ex
+        Logger.warn(ex);
     }
 
     @Override
     public void onStart() {
-        // TODO log server started successfully on host:port
+        Logger.info("WebSocket server started successfully on {}:{}", host, port);
     }
     
-    public void subscribe(String topic, TaskModule module) {        
+    public void subscribe(String topic, TaskModule subscriber) {        
         if (topics.containsKey(topic)) {
-            topics.get(topic).addModule(module);
+            topics.get(topic).addModule(subscriber);
         } else {
             TopicInteractorList topicInteractorList = new TopicInteractorList(topic);
             
-            topicInteractorList.addModule(module);
+            topicInteractorList.addModule(subscriber);
             topics.put(topic, topicInteractorList);
+            
+            Logger.info("Topic '{}' successfully registered", topic);
         }
+
+        Logger.info("Task module '{}' successfully subscribed to '{}' topic", subscriber.getModuleName(), topic);
     }
     
-    public void unsubscribe(String topic, TaskModule module) {
+    public void unsubscribe(String topic, TaskModule subscriber) {
         if (topics.containsKey(topic)) {
-            topics.get(topic).removeModule(module);
+            topics.get(topic).removeModule(subscriber);
+
+            Logger.info("Task module '{}' successfully unsubscribed '{}' topic", subscriber.getModuleName(), topic);
         } else {
-            // TODO log unregistered topic
+            Logger.warn("Topic '{}' in not registered topic", topic);
         }
     }
     
     public void publish(String topic, String message) {
         if (topics.containsKey(topic)) {
             HashSet<WebSocket> connections = topics.get(topic).getConnections();
+            int counter = 0;
 
             for (WebSocket connection : connections) {
                 connection.send(message);
+                Logger.trace("Message '{}' successfully sent to the '{}' connection", message, connection.getRemoteSocketAddress().toString());
+                counter++;
             }
             
-            // TODO log message send to <n> connections
+            Logger.debug("Message '{}' successfully sent to {} connections", message, counter);
         } else {
-            // TODO log unknown endpoint <endpoint>
+            Logger.warn("Topic '{}' in not registered topic", topic);
         }
     }
     

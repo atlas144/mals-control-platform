@@ -5,6 +5,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import malscontrolplatform.intercommunicationmodule.IntercommunicationModule;
 import malscontrolplatform.intercommunicationmodule.Message;
 import malscontrolplatform.webmodule.WebModule;
+import org.tinylog.Logger;
 
 /**
  *
@@ -22,6 +23,7 @@ public abstract class TaskModule extends Thread {
         this.intercommunicationModule = intercommunicationModule;
         this.webModule = webModule;
         messageQueue = new PriorityBlockingQueue<>();
+        Logger.info("Task module '{}' successfully initialized", moduleName);
     }
 
     public String getModuleName() {
@@ -30,6 +32,7 @@ public abstract class TaskModule extends Thread {
     
     public void acceptMessage(Message message) {
         messageQueue.add(message);
+        Logger.debug("Message successfully accepted: {}", message);
     }
 
     @Override
