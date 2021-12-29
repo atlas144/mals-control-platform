@@ -14,7 +14,9 @@ import org.json.JSONObject;
 import org.tinylog.Logger;
 
 /**
- *
+ * WebSocket server for communication between platform components and user
+ * application.
+ * 
  * @author atlas144
  */
 public class WebModule extends WebSocketServer {
@@ -23,6 +25,12 @@ public class WebModule extends WebSocketServer {
     private final short port;
     private final ConcurrentHashMap<String, TopicInteractorList> topics;
     
+    /**
+     * Creates a subscription for a given connection.
+     * 
+     * @param topic topic to which the subscription should be established
+     * @param subscriber connection which creates the subscription
+     */
     private void subscribe(String topic, WebSocket subscriber) {        
         if (topics.containsKey(topic)) {
             topics.get(topic).addConnection(subscriber);
@@ -38,6 +46,12 @@ public class WebModule extends WebSocketServer {
         Logger.info("Connection '{}' successfully subscribed to '{}' topic", subscriber.getRemoteSocketAddress().toString(), topic);
     }
     
+    /**
+     * Creates web module.
+     * 
+     * @param host address of the WebSocket server
+     * @param port port on which the WebSocket server runs
+     */
     public WebModule(String host, short port) {
         super(new InetSocketAddress(host, port));
         
@@ -47,6 +61,12 @@ public class WebModule extends WebSocketServer {
         Logger.info("Web module successfully created");
     }
     
+    /**
+     * Establishes subscription when the connection is opened.
+     * 
+     * @param connection opened connection
+     * @param handshake handshake of the connection
+     */
     @Override
     public void onOpen(WebSocket connection, ClientHandshake handshake) {
         String topic = URI.create(connection.getResourceDescriptor()).getPath();
@@ -56,6 +76,14 @@ public class WebModule extends WebSocketServer {
         Logger.info("Connection '{}' successfully opened", connection.getRemoteSocketAddress().toString());
     }
 
+    /**
+     * Unsubscribes from the topic when the connection is closed.
+     * 
+     * @param connection closed connection
+     * @param code
+     * @param reason reason of the connection closing
+     * @param remote 
+     */
     @Override
     public void onClose(WebSocket connection, int code, String reason, boolean remote) {
         String topic = URI.create(connection.getResourceDescriptor()).getPath();
@@ -70,6 +98,17 @@ public class WebModule extends WebSocketServer {
         Logger.info("Connection '{}' successfully closed\nReason: {}\nCode: {}\nRemote: {}", connection.getRemoteSocketAddress().toString(), reason, code, remote);
     }
 
+    /**
+     * Forwards incoming message to the subscribers of its topic.
+     * 
+     * @param connection source connection of the message
+     * @param message JSON object containing message payload and priority
+     * 
+     * e.g.: <code>{
+     *     "priority": 2,
+     *     "payload": "stop"
+     * }</code>
+     */
     @Override
     public void onMessage(WebSocket connection, String message) {
         String topic = URI.create(connection.getResourceDescriptor()).getPath();
@@ -124,6 +163,12 @@ public class WebModule extends WebSocketServer {
         Logger.info("WebSocket server started successfully on {}:{}", host, port);
     }
     
+    /**
+     * Creates a subscription for a given task module.
+     * 
+     * @param topic topic to which the subscription should be established
+     * @param subscriber task module which creates the subscription
+     */
     public void subscribe(String topic, TaskModule subscriber) {        
         if (topics.containsKey(topic)) {
             topics.get(topic).addModule(subscriber);
@@ -139,6 +184,12 @@ public class WebModule extends WebSocketServer {
         Logger.info("Task module '{}' successfully subscribed to '{}' topic", subscriber.getModuleName(), topic);
     }
     
+    /**
+     * Ends subscription to a given topic.
+     * 
+     * @param topic topic to be unsubscribed to
+     * @param subscriber task module which is canceling the subscribtion
+     */
     public void unsubscribe(String topic, TaskModule subscriber) {
         if (topics.containsKey(topic)) {
             topics.get(topic).removeModule(subscriber);
@@ -149,6 +200,17 @@ public class WebModule extends WebSocketServer {
         }
     }
     
+    /**
+     * Passes the message to the broker so it can send it to its subscribers.
+     * 
+     * @param topic topic of the message
+     * @param message JSON object containing message payload and priority
+     * 
+     * e.g.: <code>{
+     *     "priority": 2,
+     *     "payload": "stop"
+     * }</code>
+     */
     public void publish(String topic, String message) {
         if (topics.containsKey(topic)) {
             HashSet<WebSocket> connections = topics.get(topic).getConnections();

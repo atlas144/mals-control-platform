@@ -7,6 +7,10 @@ import malscontrolplatform.TaskModule;
 import org.tinylog.Logger;
 
 /**
+ * A module that acts as a broker for transferring messages between other 
+ * components of the platform.
+ * It allows the component to subscribe to a topic and then forward messages 
+ * with that topic to it.
  *
  * @author atlas144
  */
@@ -15,6 +19,12 @@ public class IntercommunicationModule extends Thread {
     private final PriorityBlockingQueue<Message> messageQueue;
     private final ConcurrentHashMap<String, HashSet<TaskModule>> subscribtions;
     
+    
+    /**
+     * It sends messages to subscribers of corresponding topic.
+     * 
+     * @param message message to be sent
+     */
     private void sendMessage(Message message) {
         int counter = 0;
         
@@ -27,17 +37,33 @@ public class IntercommunicationModule extends Thread {
         Logger.debug("Message '{}' successfully sent to {} modules", message, counter);
     }
     
+    /**
+     * Creates module.
+     */
     public IntercommunicationModule() {
         messageQueue = new PriorityBlockingQueue<>();
         subscribtions = new ConcurrentHashMap<>();
         Logger.info("Intercommunication module successfully created");
     }
     
+    /**
+     * Passes the message to the broker so it can send it to its subscribers.
+     * 
+     * @param topic topic of the message
+     * @param payload message content
+     * @param priority message priority
+     */
     public void publish(String topic, String payload, Priority priority) {
         messageQueue.add(new Message(topic, payload, priority));
         Logger.debug("Message successfully published\nTopic: {}\nPayload: {}\nPriority: {}", topic, payload, priority.toString());
     }
     
+    /**
+     * Sets subscription to a given topic.
+     * 
+     * @param topic topic to be subscribed to
+     * @param subscriber module which is subscribing
+     */
     public void subscribe(String topic, TaskModule subscriber) {
         if (subscribtions.contains(topic)) {
             synchronized(subscribtions) {
@@ -57,6 +83,12 @@ public class IntercommunicationModule extends Thread {
         Logger.info("Task module '{}' successfully subscribed to '{}' topic", subscriber.getModuleName(), topic);
     }
     
+    /**
+     * Ends subscription to a given topic.
+     * 
+     * @param topic topic to be unsubscribed to
+     * @param subscriber task module which is canceling the subscribtion
+     */
     public void unsubscribe(String topic, TaskModule subscriber) {
         if (subscribtions.contains(topic)) {
             HashSet<TaskModule> subscriberList = subscribtions.get(topic);
@@ -75,6 +107,9 @@ public class IntercommunicationModule extends Thread {
         }
     }
     
+    /**
+     * Broker action code. Sends messages from queue to the subscribers. 
+     */
     @Override
     public void run() {
         while (true) {            
