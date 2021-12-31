@@ -2,6 +2,7 @@ package malscontrolplatform;
 
 import java.util.Objects;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import malscontrolplatform.intercommunicationmodule.IntercommunicationModule;
 import malscontrolplatform.intercommunicationmodule.Message;
 import malscontrolplatform.webmodule.WebModule;
@@ -18,10 +19,23 @@ import org.tinylog.Logger;
 public abstract class TaskModule extends Thread {
     
     private final String moduleName;
+    private final AtomicBoolean running;
+    protected final PriorityBlockingQueue<Message> messageQueue;
     protected final IntercommunicationModule intercommunicationModule;
     protected final WebModule webModule;
-    protected final PriorityBlockingQueue<Message> messageQueue;
     
+    /**
+     * There should be a code that should be executed only once,
+     * at the beginning of the module action.
+     */
+    protected abstract void setup();
+    
+    /**
+     * Here should be the code that is executed in a loop for the whole running
+     * time of the module.
+     */
+    protected abstract void loop();
+        
     /**
      * Creates instance of the task module.
      * 
@@ -31,9 +45,10 @@ public abstract class TaskModule extends Thread {
      */
     public TaskModule(String moduleName, IntercommunicationModule intercommunicationModule, WebModule webModule) {
         this.moduleName = moduleName;
+        running = new AtomicBoolean(true);
+        messageQueue = new PriorityBlockingQueue<>();
         this.intercommunicationModule = intercommunicationModule;
         this.webModule = webModule;
-        messageQueue = new PriorityBlockingQueue<>();
         Logger.info("Task module '{}' successfully initialized", moduleName);
     }
 
@@ -54,6 +69,11 @@ public abstract class TaskModule extends Thread {
     public void acceptMessage(Message message) {
         messageQueue.add(message);
         Logger.debug("Message successfully accepted: {}", message);
+    }
+    
+    public void kill() {
+        running.set(false);
+        Logger.info("Module killed successfully");
     }
 
     /**
@@ -86,10 +106,15 @@ public abstract class TaskModule extends Thread {
         return moduleName.equals(module.getModuleName());
     }
     
-    /**
-     * Here should be inserted action code for the task module.
-     */
     @Override
-    public abstract void run();
+    public void run() {
+        setup();
+        
+        while (running.get()) {            
+            loop();
+        }
+        
+        Logger.info("Module stopped successfully");
+    }
     
 }
