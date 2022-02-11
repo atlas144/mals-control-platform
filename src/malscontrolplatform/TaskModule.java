@@ -23,8 +23,8 @@ public abstract class TaskModule extends Thread {
     private final String moduleName;
     private final AtomicBoolean running;
     protected final PriorityBlockingQueue<Message> messageQueue;
-    protected final IntercommunicationModule intercommunicationModule;
-    protected final WebModule webModule;
+    protected IntercommunicationModule intercommunicationModule;
+    protected WebModule webModule;
     
     /**
      * There should be a code that should be executed only once,
@@ -42,16 +42,31 @@ public abstract class TaskModule extends Thread {
      * Creates instance of the task module.
      * 
      * @param moduleName name of the module (must be unique)
-     * @param intercommunicationModule module for communication between platform components
-     * @param webModule server for communication with user application
      */
-    public TaskModule(String moduleName, IntercommunicationModule intercommunicationModule, WebModule webModule) {
+    public TaskModule(String moduleName) {
         this.moduleName = moduleName;
         running = new AtomicBoolean(true);
         messageQueue = new PriorityBlockingQueue<>();
-        this.intercommunicationModule = intercommunicationModule;
-        this.webModule = webModule;
         Logger.info("Task module '{}' successfully initialized", moduleName);
+    }
+    
+    /**
+     * Sets Intercommunication module.
+     * 
+     * @param intercommunicationModule module for communication between platform
+     * components
+     */
+    public void setIntercommunicationModule(IntercommunicationModule intercommunicationModule) {
+        this.intercommunicationModule = intercommunicationModule;
+    }
+    
+    /**
+     * Sets Web module.
+     * 
+     * @param webModule server for communication with user application
+     */
+    public void setWebModule(WebModule webModule) {
+        this.webModule = webModule;
     }
 
     /**

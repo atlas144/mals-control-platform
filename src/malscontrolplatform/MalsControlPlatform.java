@@ -38,6 +38,9 @@ public class MalsControlPlatform {
      * @param newModule module to be registered
      */
     public void registerModule(TaskModule newModule) {
+        newModule.setIntercommunicationModule(intercommunicationModule);
+        newModule.setWebModule(webModule);
+        
         taskModules.put(newModule.getModuleName(), newModule);
         Logger.info("Task module '{}' successfully registered", newModule.getModuleName());
     }
