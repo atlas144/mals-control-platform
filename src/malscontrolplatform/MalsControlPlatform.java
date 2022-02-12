@@ -51,7 +51,7 @@ public class MalsControlPlatform {
     public void start() {
         intercommunicationModule.start();
         Logger.info("Intercommunication module successfully started");
-        webModule.run();
+        webModule.start();
         Logger.info("Web module successfully started");
         
         for (TaskModule taskModule : taskModules.values()) {
